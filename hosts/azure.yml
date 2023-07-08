@@ -1,0 +1,6 @@
+azure:
+  hosts:
+    backend:
+      ansible_host: devops-azure-vm-1
+    db:
+      ansible_host: devops-azure-vm-2

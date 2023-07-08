@@ -1,0 +1,11 @@
+[Unit]
+After=network.target
+
+[Service]
+User={{ user }}
+Group=www-data
+WorkingDirectory={{ workspace }}
+ExecStart={{ exec_start }}
+
+[Install]
+WantedBy=multi-user.target

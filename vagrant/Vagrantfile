@@ -1,0 +1,51 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# README
+#
+# Getting Started:
+# 1. vagrant plugin install vagrant-hostmanager
+# 2. vagrant up
+# 3. vagrant ssh
+#
+# This should put you at the control host
+#  with access, by name, to other vms
+
+ENV['VAGRANT_DEFAULT_PROVIDER'] = 'libvirt'
+
+Vagrant.configure(2) do |config|
+  config.hostmanager.enabled = true
+  config.hostmanager.manage_guest = true
+  config.vm.box = "generic/ubuntu2204"
+
+  # This vm is for windows machines
+  config.vm.define "control", primary: true do |h|
+    h.vm.hostname = "control"
+    h.vm.network "private_network", ip: "192.168.56.10"
+    h.vm.provision "shell", path: "scripts/key.sh"
+  end
+
+  config.vm.define "nginx" do |h|
+    h.vm.hostname = "nginx"
+    h.vm.network "private_network", ip: "192.168.56.101"
+    h.vm.provision :shell, inline: 'cat /vagrant/control.pub >> /home/vagrant/.ssh/authorized_keys'
+  end
+
+  config.vm.define "backend" do |h|
+    h.vm.hostname = "backend"
+    h.vm.network "private_network", ip: "192.168.56.111"
+    h.vm.provision :shell, inline: 'cat /vagrant/control.pub >> /home/vagrant/.ssh/authorized_keys'
+  end
+
+  config.vm.define "frontend" do |h|
+    h.vm.hostname = "frontend"
+    h.vm.network "private_network", ip: "192.168.56.112"
+    h.vm.provision :shell, inline: 'cat /vagrant/control.pub >> /home/vagrant/.ssh/authorized_keys'
+  end
+
+  config.vm.define "db" do |h|
+    h.vm.hostname = "db"
+    h.vm.network "private_network", ip: "192.168.56.121"
+    h.vm.provision :shell, inline: 'cat /vagrant/control.pub >> /home/vagrant/.ssh/authorized_keys'
+  end
+end

@@ -1,0 +1,177 @@
+- name: Database
+  hosts: db
+  tasks:
+    - name: Save VM's address
+      ansible.builtin.debug:
+        var: ansible_all_ipv4_addresses
+      register: db_ip
+
+    - name: Print db_ip
+      ansible.builtin.debug:
+        msg: "db_ip is {{ db_ip.ansible_all_ipv4_addresses }}"
+
+    - name: Ensuring Postgresql, Python and pip are installed
+      ansible.builtin.apt:
+        name:
+          - postgresql
+          - python3
+          - python3-pip
+          - libpq-dev
+          - python3-psycopg2
+          - acl
+        state: present
+        update_cache: true
+      become: true
+
+    - name: Ensuring Python dependencies are installed
+      ansible.builtin.pip:
+        name:
+          - psycopg2-binary
+        state: present
+
+    - name: Change listen_addresses to '*'
+      ansible.builtin.lineinfile:
+        dest: /etc/postgresql/14/main/postgresql.conf
+        regexp: "^#listen_addresses"
+        line: "listen_addresses = '*'"
+        state: present
+        backup: true
+      become: true
+      notify:
+        - Restart postgresql
+
+    - name: Add pg_hba.conf entry for all
+      ansible.builtin.lineinfile:
+        dest: /etc/postgresql/14/main/pg_hba.conf
+        insertafter: EOF
+        line: "host   all   all   0.0.0.0/0   md5"
+      become: true
+      notify:
+        - Restart postgresql
+
+    - name: Create database "db"
+      community.postgresql.postgresql_db:
+        name: "{{ db_name }}"
+      become: true
+      become_user: postgres
+
+    - name: Create user "dev"
+      community.postgresql.postgresql_user:
+        name: "{{ db_user }}"
+        password: "dev"
+      become: true
+      become_user: postgres
+
+    - name: Giving appropriate privilages to "dev" user
+      community.postgresql.postgresql_privs:
+        roles: "{{ db_user }}"
+        database: postgres
+        privs: ALL
+        obj: "{{ db_name }}"
+        type: database
+      become: true
+      become_user: postgres
+
+  handlers:
+    - name: Restart postgresql
+      ansible.builtin.service:
+        name: postgresql
+        state: restarted
+      become: true
+
+- name: FastAPI Backend
+  hosts: backend
+  tasks:
+    - name: Ping my hosts
+      ansible.builtin.ping:
+
+    - name: Print message
+      ansible.builtin.debug:
+        msg: Hello world
+
+    - name: Run whoami and register the value
+      ansible.builtin.command:
+        cmd: whoami
+      changed_when: false
+      become: false
+      register: whoami
+
+    - name: Set fact of user name.
+      ansible.builtin.set_fact:
+        login_user: "{{ whoami.stdout }}"
+
+    - name: Print login_user
+      ansible.builtin.debug:
+        msg: "Username is {{ login_user }}"
+
+    - name: Print db_ip
+      ansible.builtin.debug:
+        msg: "db_ip is {{ hostvars['db']['db_ip'].ansible_all_ipv4_addresses[0] }}"
+
+    - name: Clone backend repo
+      ansible.builtin.git:
+        repo: https://github.com/jgenc/hua-distributed-project-backend
+        clone: true
+        update: true
+        dest: "{{ workspace }}"
+
+    - name: Install required packages from APT
+      ansible.builtin.apt:
+        name:
+          - python3
+          - python3-pip
+          - python3-virtualenv
+          - virtualenv
+        update_cache: true
+      become: true
+      become_user: root
+
+    - name: Copying env file
+      ansible.builtin.command: "cp {{ workspace }}/.env.example {{ workspace }}/.env"
+      register: dotenv_copy_cmd_output
+      changed_when: dotenv_copy_cmd_output != 0
+
+    - name: Changing PostgreSQL URI to correspond to DB's IP
+      ansible.builtin.lineinfile:
+        path: "{{ workspace }}/.env"
+        regexp: "^DB_IP="
+        line: "DB_IP={{ hostvars['db']['db_ip'].ansible_all_ipv4_addresses[0] }}"
+
+    - name: Creating Virtual Environment (.venv)
+      ansible.builtin.pip:
+        requirements: "{{ workspace }}/requirements.txt"
+        virtualenv: "{{ workspace }}/.venv"
+        virtualenv_python: python3
+
+    - name: Install service file (uvicorn)
+      ansible.builtin.template:
+        src: ../files/backend/uvicorn.service.jinja
+        dest: /etc/systemd/system/uvicorn.service
+      become: true
+      become_user: root
+
+    - name: Check if service is running
+      ansible.builtin.systemd:
+        name: uvicorn
+        daemon_reload: true
+        state: restarted
+        enabled: true
+      become: true
+
+- name: Migrating data
+  hosts: backend
+  tasks:
+    # command:  bash -c "cd app/ && alembic upgrade head"
+    - name: Migrate using alembic
+      ansible.builtin.shell:
+        cmd: "cd {{ workspace }}/app && ../.venv/bin/alembic upgrade head"
+
+    - name: 
+
+    - name: Restart service
+      ansible.builtin.systemd:
+        name: uvicorn
+        daemon_reload: true
+        state: started
+        enabled: true
+      become: true

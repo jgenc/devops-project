@@ -1,0 +1,11 @@
+# For each ansible_host name, the host device *needs* to name each of the hosts
+# in the ~/.ssh/config file. Without that, ansible does not now who "backend" is
+
+# Fixed by creating hosts folder
+
+vagrant:
+  hosts:
+    backend:
+      ansible_host: backend
+    db:
+      ansible_host: db
