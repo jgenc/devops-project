@@ -9,3 +9,5 @@ vagrant:
       ansible_host: backend
     db:
       ansible_host: db
+    frontend:
+      ansible_host: frontend

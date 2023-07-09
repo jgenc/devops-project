@@ -4,8 +4,8 @@ After=network.target
 [Service]
 User={{ user }}
 Group=www-data
-WorkingDirectory={{ backend_workspace }}
-ExecStart={{ backend_exec_start }}
+WorkingDirectory={{ frontend_workspace }}
+ExecStart={{ frontend_exec_start }}
 
 [Install]
 WantedBy=multi-user.target
