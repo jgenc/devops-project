@@ -8,6 +8,6 @@ vagrant:
     backend:
       ansible_host: backend
     db:
-      ansible_host: db
+      ansible_host: backend
     frontend:
       ansible_host: frontend

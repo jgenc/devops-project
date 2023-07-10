@@ -1,0 +1,73 @@
+- name: Save Backend's IP
+  hosts: backend
+  tasks:
+    - name: Save Backend's address
+      ansible.builtin.debug:
+        var: ansible_all_ipv4_addresses
+      register: backend_ip
+
+- name: Frontend
+  hosts: frontend
+  tasks:
+    - name: Ping hosts
+      ansible.builtin.ping:
+
+    - name: Ensure docker is installed
+      ansible.builtin.apt:
+        name:
+          - docker.io
+          - apt-transport-https
+          - ca-certificates
+          - python3-docker
+          - python3
+        update_cache: true
+      become: true
+      become_user: root
+
+    - name: Start the docker service
+      ansible.builtin.service:
+        name: docker
+        state: started
+      become: true
+      become_user: root
+
+    - name: Clone frontend repo
+      ansible.builtin.git:
+        repo: https://github.com/jgenc/hua-distributed-project-frontend
+        clone: true
+        update: true
+        dest: "{{ frontend_workspace }}"
+
+    - name: Copying env file
+      ansible.builtin.command: "cp {{ frontend_workspace }}/.env.example {{ frontend_workspace }}/.env"
+      register: dotenv_copy_cmd_output
+      changed_when: dotenv_copy_cmd_output != 0
+
+    - name: Changing backend URL in .env to correspond to backend's IP
+      ansible.builtin.lineinfile:
+        path: "{{ frontend_workspace }}/.env"
+        regexp: "^VITE_SOLID_BACKEND="
+        line: "VITE_SOLID_BACKEND=http://{{ hostvars['backend']['backend_ip'].ansible_all_ipv4_addresses[0] }}:{{ backend_app_port }}"
+
+    - name: Build frontend docker image
+      community.docker.docker_image:
+        name: frontend
+        source: build
+        build:
+          dockerfile: production.dockerfile
+          path: "{{ frontend_workspace }}"
+          args:
+            listen_port: 80
+          rm: true
+      become: true
+      become_user: root
+
+    - name: Run the frontend docker image
+      community.docker.docker_container:
+        name: frontend
+        image: frontend
+        state: started
+        ports:
+          - 80:80
+      become: true
+      become_user: root
