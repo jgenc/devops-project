@@ -5,8 +5,10 @@
 - [Application](#application)
 - [Azure](#azure)
 - [Docker](#docker)
+- [Dockerc-compose](#docker-compose)
 - [Vagrant](#vagrant)
 - [Ansible](#ansible)
+- [Kubernetes](#kubernetes)
 
 ### Application
 
@@ -16,6 +18,9 @@ It's the same as [here](https://github.com/jgenc/hua-distributed-project-backend
 to `/docs` there is an Adminstrator with `admin:admin` username:password!
 
 #### Frontend
+
+It's the same as [here](https://github.com/jgenc/hua-distributed-project-frontend), so you can assume that when you navigate
+to `/#/login` you can login using `admin:admin` as username:password.
 
 ### Azure
 
@@ -28,9 +33,14 @@ For internal Vnets to talk to eachother, we can do either of the following:
 
 ### Docker
 
-#### `devops-backend` package
+#### Pull/use packages already created
 
-Test
+1. `ghcr.io/jgenc/devops-backend`, a FastAPI backend. You can access `/docs` to see the OpenAPI and to see what methods exists, or you can refer to the repository's `openapi.json` file [here](https://github.com/jgenc/hua-distributed-project-backend/blob/09ab07d81734cf7084ffc298d77519094f40b096/openapi.json). Try using `/api/auth/login` with Postman or any other similar software
+2. `ghcr.io/jgenc/devops-fronend-prod`, an NGINX image that serves a SolidJS SPA. It is implemented using a hash mode router (meaning all routes must start with '#', i.e. `/#/login` is valid but `/login` is not!). Quite performant and good looking.
+
+### Docker-compose
+
+The `docker-compose.yml` file will deploy the **whole** stack to a target, either if that's a VM, local installation, kubernetes, you name it. It pulls the latest docker images and it is tested both on Vagrant VMs and on my local machine.
 
 ### Vagrant
 
@@ -48,28 +58,28 @@ I know that this sounds weird, but it fixed my weird errors...
 
 ### Ansible
 
-#### `backend.yml` Playbook
-
-Sets up the database and backend. Assumes **two** VMs, which, of course, could
-also be just one. It all depends on what values the host has. For example:
-
-```yaml
-azure:
-  hosts:
-    backend:
-      ansible_host: devops-azure-vm-1
-    db:
-      ansible_host: devops-azure-vm-2
-      # or
-      ansible_host: devops-azure-vm-1
-```
-
-This is possible because in the playbook there exists a play that retrieves the
-database's IP, which is then feeded to the backend to accordingly modify the
-`.env` file.
+The backend component has a docker and a VM implementation, whilst the frontend component has docker-jenkins, docker, nginx-vm, and vite implementations. The `vite` one is used for local development, it's quite handy.
 
 ##### Example Executions
 
-`ansible-playbook playbooks/backend.yml -i hosts/vagrant.yml`
+`ansible-playbook -i hosts.yml -l azure-deploy-1 playbooks/frontend-docker.yml`
 
-`ansible-playbook playbooks/backend.yml -i hosts/azure.yml`
+`ansible-playbook -i hosts.yml -l frontend playbooks/frontend-nginx-vm.yml`
+
+`ansible-playbook -i hosts.yml -l azure-deploy-1 playbooks/backend-vm.yml`
+
+`ansible-playbook -i hosts.yml -l backend playbooks/backend-docker.yml`
+
+### Kubernetes
+
+All files are under the `k8s` folder. There you can find files for the backend component, the frontend component, the database and the certbot. Backend and Frontend both contain an ingress file, which is useful to route all backend api calls to `HOST_URL/api` and all frontend to `HOST_URL/` (-> `/HOST_URL/#/` because of the hash mode router!)
+
+If you want to install this to your cluster you have to `kubectl apply -f <file-name>` all files that are relevant to you
+
+#### Example - Frontend
+
+- Modify `frontend.env.yml`
+- Modify `frontend-ingress.yml`
+- Apply all the files under `k8s/frontend` to your cluster
+
+And you should be ready to go! Same applies to the `k8s/backend` and `k8s/db` folders
