@@ -1,10 +1,10 @@
-- name: Save Backend's IP
-  hosts: webserver
-  tasks:
-    - name: Save Backend's address
-      ansible.builtin.debug:
-        var: ansible_all_ipv4_addresses
-      register: backend_ip
+# - name: Save Backend's IP
+#   hosts: webserver
+#   tasks:
+#     - name: Save Backend's address
+#       ansible.builtin.debug:
+#         var: ansible_all_ipv4_addresses
+#       register: backend_ip
 
 - name: Frontend
   hosts: webserver
@@ -38,6 +38,15 @@
         update: true
         dest: "{{ frontend_workspace }}"
 
+    - name: Get machine's public IP
+      ansible.builtin.command:
+        cmd: "curl --silent --fail ifconfig.me/ip"
+      register: machine_ip
+
+    - name: Print machine's ip
+      ansible.builtin.debug:
+        msg: "Machine's IP is {{ machine_ip.stdout }}"
+
     - name: Copying env file
       ansible.builtin.command: "cp {{ frontend_workspace }}/.env.example {{ frontend_workspace }}/.env"
       register: dotenv_copy_cmd_output
@@ -47,7 +56,8 @@
       ansible.builtin.lineinfile:
         path: "{{ frontend_workspace }}/.env"
         regexp: "^VITE_SOLID_BACKEND="
-        line: "VITE_SOLID_BACKEND=http://{{ hostvars['backend']['backend_ip'].ansible_all_ipv4_addresses[0] }}:{{ backend_app_port }}"
+        # line: "VITE_SOLID_BACKEND=http://{{ hostvars['backend']['backend_ip'].ansible_all_ipv4_addresses[0] }}:{{ backend_app_port }}"
+        line: "VITE_SOLID_BACKEND=http://{{ machine_ip.stdout }}:{{ backend_app_port }}"
 
     - name: Build frontend docker image
       community.docker.docker_image:

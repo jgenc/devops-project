@@ -1,0 +1,38 @@
+- name: Frontend
+  hosts: webserver
+  tasks:
+    - name: Ping hosts
+      ansible.builtin.ping:
+
+    - name: Ensure docker is installed
+      ansible.builtin.apt:
+        name:
+          - docker.io
+          - apt-transport-https
+          - ca-certificates
+          - python3-docker
+          - python3
+        update_cache: true
+      become: true
+      become_user: root
+
+    - name: Start the docker service
+      ansible.builtin.service:
+        name: docker
+        state: started
+      become: true
+      become_user: root
+
+    - name: Get docker image name
+      ansible.builtin.debug:
+        msg: "docker image is: {{ lookup('env', 'DOCKER_PREFIX') }}"
+
+    # - name: Run the frontend docker image
+    #   community.docker.docker_container:
+    #     name: frontend
+    #     image:
+    #     state: started
+    #     ports:
+    #       - 80:80
+    #   become: true
+    #   become_user: root

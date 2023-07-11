@@ -1,3 +1,70 @@
+- name: FastAPI Backend
+  hosts: webserver
+  tasks:
+    - name: Ping my hosts
+      ansible.builtin.ping:
+
+    - name: Print message
+      ansible.builtin.debug:
+        msg: Hello world
+
+    - name: Run whoami and register the value
+      ansible.builtin.command:
+        cmd: whoami
+      changed_when: false
+      become: false
+      register: whoami
+
+    - name: Set fact of user name.
+      ansible.builtin.set_fact:
+        login_user: "{{ whoami.stdout }}"
+
+    - name: Print login_user
+      ansible.builtin.debug:
+        msg: "Username is {{ login_user }}"
+
+    - name: Clone backend repo
+      ansible.builtin.git:
+        repo: https://github.com/jgenc/hua-distributed-project-backend
+        clone: true
+        update: true
+        dest: "{{ backend_workspace }}"
+
+    - name: Install required packages from APT
+      ansible.builtin.apt:
+        name:
+          - python3
+          - python3-pip
+          - python3-virtualenv
+          - virtualenv
+        update_cache: true
+      become: true
+      become_user: root
+
+    - name: Copying env file
+      ansible.builtin.command: "cp {{ backend_workspace }}/.env.example {{ backend_workspace }}/.env"
+      register: dotenv_copy_cmd_output
+      changed_when: dotenv_copy_cmd_output != 0
+
+    - name: Changing PostgreSQL URI in .env to correspond to DB's IP
+      ansible.builtin.lineinfile:
+        path: "{{ backend_workspace }}/.env"
+        regexp: "^DB_IP="
+        line: "DB_IP=localhost"
+
+    - name: Creating Virtual Environment (.venv)
+      ansible.builtin.pip:
+        requirements: "{{ backend_workspace }}/requirements.txt"
+        virtualenv: "{{ backend_workspace }}/.venv"
+        virtualenv_python: python3
+
+    - name: Install service file (uvicorn)
+      ansible.builtin.template:
+        src: ../files/backend/uvicorn.service.jinja
+        dest: /etc/systemd/system/uvicorn.service
+      become: true
+      become_user: root
+
 - name: Database
   hosts: database
   tasks:
@@ -79,89 +146,9 @@
         state: restarted
       become: true
 
-- name: FastAPI Backend
-  hosts: webserver
-  tasks:
-    - name: Ping my hosts
-      ansible.builtin.ping:
-
-    - name: Print message
-      ansible.builtin.debug:
-        msg: Hello world
-
-    - name: Run whoami and register the value
-      ansible.builtin.command:
-        cmd: whoami
-      changed_when: false
-      become: false
-      register: whoami
-
-    - name: Set fact of user name.
-      ansible.builtin.set_fact:
-        login_user: "{{ whoami.stdout }}"
-
-    - name: Print login_user
-      ansible.builtin.debug:
-        msg: "Username is {{ login_user }}"
-
-    - name: Print db_ip
-      ansible.builtin.debug:
-        msg: "db_ip is {{ hostvars['database']['db_ip'].ansible_all_ipv4_addresses[0] }}"
-
-    - name: Clone backend repo
-      ansible.builtin.git:
-        repo: https://github.com/jgenc/hua-distributed-project-backend
-        clone: true
-        update: true
-        dest: "{{ backend_workspace }}"
-
-    - name: Install required packages from APT
-      ansible.builtin.apt:
-        name:
-          - python3
-          - python3-pip
-          - python3-virtualenv
-          - virtualenv
-        update_cache: true
-      become: true
-      become_user: root
-
-    - name: Copying env file
-      ansible.builtin.command: "cp {{ backend_workspace }}/.env.example {{ backend_workspace }}/.env"
-      register: dotenv_copy_cmd_output
-      changed_when: dotenv_copy_cmd_output != 0
-
-    - name: Changing PostgreSQL URI in .env to correspond to DB's IP
-      ansible.builtin.lineinfile:
-        path: "{{ backend_workspace }}/.env"
-        regexp: "^DB_IP="
-        line: "DB_IP={{ hostvars['database']['db_ip'].ansible_all_ipv4_addresses[0] }}"
-
-    - name: Creating Virtual Environment (.venv)
-      ansible.builtin.pip:
-        requirements: "{{ backend_workspace }}/requirements.txt"
-        virtualenv: "{{ backend_workspace }}/.venv"
-        virtualenv_python: python3
-
-    - name: Install service file (uvicorn)
-      ansible.builtin.template:
-        src: ../files/backend/uvicorn.service.jinja
-        dest: /etc/systemd/system/uvicorn.service
-      become: true
-      become_user: root
-
-    - name: Check if service is running
-      ansible.builtin.systemd:
-        name: uvicorn
-        daemon_reload: true
-        state: restarted
-        enabled: true
-      become: true
-
 - name: Migrating data
   hosts: webserver
   tasks:
-    # command:  bash -c "cd app/ && alembic upgrade head"
     - name: Migrate using alembic
       ansible.builtin.shell:
         cmd: "cd {{ backend_workspace }}/app && ../.venv/bin/alembic upgrade head"
@@ -173,3 +160,4 @@
         state: restarted
         enabled: true
       become: true
+      become_user: root

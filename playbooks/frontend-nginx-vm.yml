@@ -1,11 +1,3 @@
-- name: Save Backend's IP
-  hosts: webserver
-  tasks:
-    - name: Save Backend's address
-      ansible.builtin.debug:
-        var: ansible_all_ipv4_addresses
-      register: backend_ip
-
 - name: Frontend
   hosts: webserver
   vars:
@@ -13,16 +5,6 @@
   tasks:
     - name: Ping hosts
       ansible.builtin.ping:
-
-    # - name: Get PPA script to install Node v18.x
-    #   ansible.builtin.get_url:
-    #     url: https://deb.nodesource.com/setup_18.x
-    #     dest: "/home/{{ user }}/nodesource_setup.sh"
-
-    # - name: Run PPA Script
-    #   ansible.builtin.command: "bash /home/{{ user }}/nodesource_setup.sh"
-    #   become: true
-    #   become_user: root
 
     - name: Installing GPG key for the nodejs LTS repo
       ansible.builtin.apt_key:
@@ -41,6 +23,7 @@
       ansible.builtin.apt:
         name:
           - nodejs
+        state: present
         update_cache: true
       become: true
       become_user: root
@@ -61,22 +44,33 @@
       register: dotenv_copy_cmd_output
       changed_when: dotenv_copy_cmd_output != 0
 
+- name: Update Backend IP
+  hosts: webserver
+  tasks:
+    - name: Debug
+      ansible.builtin.debug:
+        msg: "{{ ansible_all_ipv4_addresses }}"
+
     - name: Changing backend URL in .env to correspond to backend's IP
       ansible.builtin.lineinfile:
         path: "{{ frontend_workspace }}/.env"
         regexp: "^VITE_SOLID_BACKEND="
-        line: "VITE_SOLID_BACKEND=http://{{ hostvars['backend']['backend_ip'].ansible_all_ipv4_addresses[0] }}:{{ backend_app_port }}"
-
-    - name: Build frontend files
-      ansible.builtin.command:
-        chdir: "{{ frontend_workspace }}"
-        cmd: npm run build
+        line: "VITE_SOLID_BACKEND=http://{{ ansible_all_ipv4_addresses[1] }}:{{ backend_app_port }}"
 
 - name: Install nginx service
   hosts: webserver
   become: true
   become_user: root
   tasks:
+    - name: Build frontend files
+      ansible.builtin.command:
+        chdir: "{{ frontend_workspace }}"
+        cmd: npm run build
+
+    - name: Copy frontend files for nginx to see
+      ansible.builtin.command:
+        cmd: "cp -r {{ frontend_workspace }}/dist /var/www/dist"
+
     - name: Install nginx from APT
       ansible.builtin.apt:
         name: nginx
@@ -86,11 +80,6 @@
       ansible.builtin.template:
         src: ../files/frontend/nginx.conf.jinja
         dest: /etc/nginx/sites-available/frontend
-
-    # - name: Fix nginx permissions
-    #   ansible.builtin.file:
-    #     path: "/home/{{ user }}"
-    #     mode: ugo+x
 
     - name: Enable frontend site
       ansible.builtin.file:
@@ -102,7 +91,7 @@
       ansible.builtin.file:
         path: /etc/nginx/sites-enabled/default
         state: absent
-      notify: restart nginx
+      notify: Restart nginx
 
   handlers:
     - name: Restart nginx
