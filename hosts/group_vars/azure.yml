@@ -1,9 +1,14 @@
 user: azureuser
-workspace: "/home/{{ user }}/backend_app"
 
-app_port: 8000
+backend_workspace: "/home/{{ user }}/backend_app"
+frontend_workspace: "/home/{{ user }}/frontend_app"
 
-exec_start: "{{workspace}}/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port {{ app_port }}"
+backend_app_port: 8000
+frontend_app_port: 3000
+
+backend_exec_start: "{{ backend_workspace }}/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port {{ backend_app_port }}"
+# frontend_exec_start: "cd {{ frontend_workspace }} && npm run dev -- --host --port 80"
+frontend_exec_start: "npm run dev -- --host --port {{ frontend_app_port }}"
 
 db_user: dev
 db_name: db
