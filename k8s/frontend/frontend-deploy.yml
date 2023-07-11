@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend 
+  namespace: default
+  labels:
+    component: frontend
+spec:
+  selector:
+    matchLabels:
+      component: frontend
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        component: frontend
+    spec:
+      initContainers:
+        - name: init-frontend
+          image: 'ghcr.io/jgenc/devops-frontend-prod:latest'
+          command: ["/bin/sh", "-c", "sleep 2"]
+          volumeMounts:
+            - name: frontend-config 
+              mountPath: /app/.env
+              subPath: .env
+          ports:
+          - containerPort: 80
+      containers:
+        - name: frontend
+          image: 'ghcr.io/jgenc/devops-frontend-prod:latest'
+          # command: ["/bin/sh", "-c", "sleep 1000"]
+          volumeMounts:
+            - name: frontend-config 
+              mountPath: /app/.env
+              subPath: .env
+          ports:
+          - containerPort: 80
+      volumes:
+        - name: frontend-config
+          configMap:
+            name: frontend-config
+      restartPolicy: Always
