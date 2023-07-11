@@ -4,3 +4,5 @@ azure:
       ansible_host: devops-azure-vm-1
     db:
       ansible_host: devops-azure-vm-2
+    frontend:
+      ansible_host: devops-azure-vm-1

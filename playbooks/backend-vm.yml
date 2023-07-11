@@ -170,6 +170,6 @@
       ansible.builtin.systemd:
         name: uvicorn
         daemon_reload: true
-        state: started
+        state: restarted
         enabled: true
       become: true
