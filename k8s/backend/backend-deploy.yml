@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: default
+  labels:
+    component: backend
+spec:
+  selector:
+    matchLabels:
+      component: backend
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        component: backend
+    spec:
+      initContainers:
+        - name: migrate-backend 
+          image: ghcr.io/jgenc/devops-backend
+          volumeMounts:
+            - name: fastapi-config
+              mountPath: /server/.env
+              subPath: .env
+          command: [ "/bin/sh", "-c", "cd app/ && alembic upgrade head" ]
+          # command: [ "/bin/sh", "-c", "sleep 1000" ]
+          ports:
+          - containerPort: 8000
+      containers:
+        - name: backend
+          image: 'ghcr.io/jgenc/devops-backend:latest'
+          volumeMounts:
+            - name: fastapi-config
+              mountPath: /server/.env
+              subPath: .env
+          ports:
+          - containerPort: 8000
+        # - name: nginx-sidecar
+        #   image: nginx:stable
+        #   ports:
+        #       - containerPort: 80
+        #   imagePullPolicy: Always
+        #   volumeMounts:
+        #     - name: nginx-conf
+        #       mountPath: /etc/nginx/conf.d
+        #       readOnly: true
+      volumes:
+        - name: nginx-conf
+          configMap:
+            name: backend-nginx
+        - name: fastapi-config
+          configMap:
+            name: fastapi-config
+      restartPolicy: Always

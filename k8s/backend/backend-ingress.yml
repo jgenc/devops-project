@@ -1,0 +1,20 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: backend-ingress
+  annotations:
+    # nginx.ingress.kubernetes.io/rewrite-target: /api
+    kubernetes.io/ingress.class: nginx
+    kubernetes.io/tls-acme: "true" 
+spec:
+  rules:
+  - host: devops-fast.ddns.net
+    http:
+      paths:
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: backend-service
+            port:
+              name: backend-srv
