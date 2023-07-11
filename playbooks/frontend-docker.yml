@@ -1,5 +1,5 @@
 - name: Save Backend's IP
-  hosts: backend
+  hosts: webserver
   tasks:
     - name: Save Backend's address
       ansible.builtin.debug:
@@ -7,7 +7,7 @@
       register: backend_ip
 
 - name: Frontend
-  hosts: frontend
+  hosts: webserver
   tasks:
     - name: Ping hosts
       ansible.builtin.ping:

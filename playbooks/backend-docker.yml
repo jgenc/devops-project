@@ -3,7 +3,7 @@
 # TODO: For some reason, frotend docker container gets blocked by CORS... fix it
 
 - name: Database container
-  hosts: db
+  hosts: database
   tasks:
     - name: Save db's address
       ansible.builtin.debug:
@@ -74,7 +74,7 @@
 
     - name: Print db_ip
       ansible.builtin.debug:
-        msg: "db_ip is {{ hostvars['db']['db_ip'].ansible_all_ipv4_addresses[0] }}"
+        msg: "db_ip is {{ hostvars['database']['db_ip'].ansible_all_ipv4_addresses[0] }}"
 
     - name: Clone backend repo
       ansible.builtin.git:
@@ -92,7 +92,7 @@
       ansible.builtin.lineinfile:
         path: "{{ backend_workspace }}/.env"
         regexp: "^DB_IP="
-        line: "DB_IP={{ hostvars['db']['db_ip'].ansible_all_ipv4_addresses[0] }}"
+        line: "DB_IP={{ hostvars['database']['db_ip'].ansible_all_ipv4_addresses[0] }}"
 
     - name: Build backend docker image
       community.docker.docker_image:
