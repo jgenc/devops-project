@@ -1,5 +1,5 @@
 - name: Database
-  hosts: db
+  hosts: database
   tasks:
     - name: Save db's address
       ansible.builtin.debug:
@@ -80,7 +80,7 @@
       become: true
 
 - name: FastAPI Backend
-  hosts: backend
+  hosts: webserver
   tasks:
     - name: Ping my hosts
       ansible.builtin.ping:
@@ -106,7 +106,7 @@
 
     - name: Print db_ip
       ansible.builtin.debug:
-        msg: "db_ip is {{ hostvars['db']['db_ip'].ansible_all_ipv4_addresses[0] }}"
+        msg: "db_ip is {{ hostvars['database']['db_ip'].ansible_all_ipv4_addresses[0] }}"
 
     - name: Clone backend repo
       ansible.builtin.git:
@@ -135,7 +135,7 @@
       ansible.builtin.lineinfile:
         path: "{{ backend_workspace }}/.env"
         regexp: "^DB_IP="
-        line: "DB_IP={{ hostvars['db']['db_ip'].ansible_all_ipv4_addresses[0] }}"
+        line: "DB_IP={{ hostvars['database']['db_ip'].ansible_all_ipv4_addresses[0] }}"
 
     - name: Creating Virtual Environment (.venv)
       ansible.builtin.pip:
@@ -159,7 +159,7 @@
       become: true
 
 - name: Migrating data
-  hosts: backend
+  hosts: webserver
   tasks:
     # command:  bash -c "cd app/ && alembic upgrade head"
     - name: Migrate using alembic

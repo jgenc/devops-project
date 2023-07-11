@@ -1,5 +1,5 @@
 - name: Save Backend's IP
-  hosts: backend
+  hosts: webserver
   tasks:
     - name: Save Backend's address
       ansible.builtin.debug:
@@ -7,7 +7,7 @@
       register: backend_ip
 
 - name: Frontend
-  hosts: frontend
+  hosts: webserver
   vars:
     nodejs_version: 18
   tasks:
@@ -18,7 +18,7 @@
     #   ansible.builtin.get_url:
     #     url: https://deb.nodesource.com/setup_18.x
     #     dest: "/home/{{ user }}/nodesource_setup.sh"
-        
+
     # - name: Run PPA Script
     #   ansible.builtin.command: "bash /home/{{ user }}/nodesource_setup.sh"
     #   become: true
@@ -71,9 +71,9 @@
       ansible.builtin.command:
         chdir: "{{ frontend_workspace }}"
         cmd: npm run build
-    
+
 - name: Install nginx service
-  hosts: frontend
+  hosts: webserver
   become: true
   become_user: root
   tasks:
@@ -82,11 +82,11 @@
         name: nginx
         update_cache: true
 
-    - name: Copy nginx configuration 
+    - name: Copy nginx configuration
       ansible.builtin.template:
         src: ../files/frontend/nginx.conf.jinja
         dest: /etc/nginx/sites-available/frontend
-    
+
     # - name: Fix nginx permissions
     #   ansible.builtin.file:
     #     path: "/home/{{ user }}"
@@ -103,7 +103,6 @@
         path: /etc/nginx/sites-enabled/default
         state: absent
       notify: restart nginx
-
 
   handlers:
     - name: Restart nginx
